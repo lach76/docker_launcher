@@ -115,6 +115,8 @@ def processmenu(menu, parent=None):
             os.system('reset')
 
             os.system('sudo %s %s' % (menu['options'][getin]['command'], input))
+            os.system('echo "Now Build Containers are restarting..."')
+            os.system('sudo service docker restart')
 
             screen.clear() #clears previous screen
             curses.reset_prog_mode()   # reset to 'current' curses environment
