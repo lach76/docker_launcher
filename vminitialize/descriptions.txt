@@ -1,0 +1,11 @@
+Host VM Configurations.
+
+IMPORTANT!! - Share below VM's folder with docker container
+  - /home
+  - /opt
+  - /nfsroot
+  - /tftpboot
+
+If you change file or package in other folder, you must inform us for environment keeping.
+
+Below is default script for install VM Initialize.
