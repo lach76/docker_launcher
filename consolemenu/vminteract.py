@@ -186,6 +186,13 @@ def get_lan_ip():
 
 def get_default_options(image_name):
     return [
+    {'title':'-----------------------', 'type':SKIP, 'image_name':image_name},
+    {'title':'Connect', 'type':COMMAND, 'image_name':image_name}
+    ]
+
+def get_default_options_adm(image_name):
+    return [
+    {'title':'-----------------------', 'type':SKIP, 'image_name':image_name},
     {'title':'Start', 'type':COMMAND, 'image_name':image_name},
     {'title':'Stop', 'type':COMMAND, 'image_name':image_name},
     {'title':'Restart', 'type':COMMAND, 'image_name':image_name},
@@ -198,6 +205,10 @@ menu_data_base = {
 }
 
 if __name__ == '__main__':
+    import getpass
+
+    admin_user_list = ['humax']
+    current_user = getpass.getuser()
     host_ip_address = get_lan_ip()
 
     # load docker repository and get current running info
@@ -208,7 +219,12 @@ if __name__ == '__main__':
     container_image_list.sort()
     for image in container_image_list:
         container_info = DockerContainers.get_container_info(image)
-        data = {'image_name':image, 'type':MENU, 'subtitle':'Start / Stop / Connect Build Environment. Select it', 'options':get_default_options(image)}
+        if current_user in admin_user_list:
+            sub_options = get_default_options_adm(image)
+        else:
+            sub_options = get_default_options(image)
+
+        data = {'image_name':image, 'type':MENU, 'subtitle':'Start / Stop / Connect Build Environment. Select it', 'options':sub_options}
         options.append(data)
 
     run_path = os.path.dirname( os.path.abspath( __file__ ) )
@@ -218,7 +234,15 @@ if __name__ == '__main__':
         {'title':'', 'subtitle':'', 'type':SKIP}
     ]
 
-    menu_data_base['options'] = admin_options + options
+    skip_options = [
+        {'title':'-------------------------------------', 'type':SKIP}
+    ]
+
+    menu_data_base['title'] = "Development Environment Config Manager - [%s]" % current_user
+    if current_user in admin_user_list:
+        menu_data_base['options'] = skip_options + admin_options + options
+    else:
+        menu_data_base['options'] = skip_options + options
 
     screen = curses.initscr()
     curses.noecho()
