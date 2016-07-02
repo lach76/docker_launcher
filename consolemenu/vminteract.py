@@ -7,14 +7,15 @@ import curses
 import os
 import urllib2
 import json
-import urllib2
-import subprocess
+import socket
 
 import TDockerContainer
 
 MENU = "menu"
 COMMAND = "command"
 EXITMENU = "exitmenu"
+SKIP = 'skip'
+ADM_COMMAND = "admcommand"
 
 def get_title_str(container_info):
     return '%s - (%s) [%s]' % (container_info['container_name'], container_info['expose_ip'], container_info['status'])
@@ -54,10 +55,11 @@ def runmenu(menu, parent):
                 if pos==index:
                     textstyle = highlight
 
-                image_name = menu['options'][index]['image_name']
-                container_info = DockerContainers.get_container_info(image_name)
-                if container_info['status'].startswith('run'):
-                    textstyle = textstyle + curses.A_BOLD
+                if menu['options'][index].has_key('image_name'):
+                    image_name = menu['options'][index]['image_name']
+                    container_info = DockerContainers.get_container_info(image_name)
+                    if container_info['status'].startswith('run'):
+                        textstyle = textstyle + curses.A_BOLD
 
                 if menu['options'][index].has_key('title'):
                     title = menu['options'][index]['title']
@@ -99,6 +101,27 @@ def processmenu(menu, parent=None):
         getin = runmenu(menu, parent)
         if getin == optioncount:
             exitmenu = True
+        elif menu['options'][getin]['type'] == ADM_COMMAND:
+            # Get Input from User
+            screen.clear()
+            screen.border(0)
+            screen.addstr(2, 2, menu['options'][getin]['subtitle'])
+            screen.refresh()
+            curses.echo()
+            input = screen.getstr(10, 10, 60)
+            curses.noecho()
+
+            curses.def_prog_mode()    # save curent curses environment
+            os.system('reset')
+
+            os.system('sudo %s %s' % (menu['options'][getin]['command'], input))
+
+            screen.clear() #clears previous screen
+            curses.reset_prog_mode()   # reset to 'current' curses environment
+            curses.curs_set(1)         # reset doesn't do this right
+            curses.curs_set(0)
+            pass
+
         elif menu['options'][getin]['type'] == COMMAND:
             curses.def_prog_mode()    # save curent curses environment
             os.system('reset')
@@ -142,30 +165,30 @@ def processmenu(menu, parent=None):
                 exitmenu = True
 
 def get_interface_ip(ifname):
-      import fcntl
-      import struct
-      s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-      return socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, struct.pack('256s', ifname[:15]))[20:24])
+    import fcntl
+    import struct
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, struct.pack('256s', ifname[:15]))[20:24])
 
 def get_lan_ip():
-      ip = socket.gethostbyname(socket.gethostname())
-      if ip.startswith("127."):
-          interfaces = ["eth0", "eth1", "eth2", "wlan0", "wlan1", "wifi0", "ath0", "ath1", "ppp0", "enp4s0"]
-          for ifname in interfaces:
-              try:
-                  ip = get_interface_ip(ifname)
-                  break
-              except IOError:
-                  pass
-      return ip
+    ip = socket.gethostbyname(socket.gethostname())
+    if ip.startswith("127."):
+        interfaces = ["eth0", "eth1", "eth2", "wlan0", "wlan1", "wifi0", "ath0", "ath1", "ppp0", "enp4s0"]
+        for ifname in interfaces:
+            try:
+                ip = get_interface_ip(ifname)
+                break
+            except IOError:
+                pass
+    return ip
 
 def get_default_options(image_name):
-      return [
-        {'title':'Start', 'type':COMMAND, 'image_name':image_name},
-        {'title':'Stop', 'type':COMMAND, 'image_name':image_name},
-        {'title':'Restart', 'type':COMMAND, 'image_name':image_name}
-        {'title':'Connect', 'type':COMMAND, 'image_name':image_name}
-      ]
+    return [
+    {'title':'Start', 'type':COMMAND, 'image_name':image_name},
+    {'title':'Stop', 'type':COMMAND, 'image_name':image_name},
+    {'title':'Restart', 'type':COMMAND, 'image_name':image_name},
+    {'title':'Connect', 'type':COMMAND, 'image_name':image_name}
+    ]
 
 menu_data_base = {
   'title': "Development Environment Launcher", 'type':MENU, 'subtitle':'Please select an options....',
@@ -173,35 +196,40 @@ menu_data_base = {
 }
 
 if __name__ == '__main__':
-      import socket
+    host_ip_address = get_lan_ip()
 
-      host_ip_address = get_lan_ip()
+    # load docker repository and get current running info
+    DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address)
 
-      # load docker repository and get current running info
-      DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address)
+    options = []
+    container_image_list = DockerContainers.get_container_image_list()
+    container_image_list.sort()
+    for image in container_image_list:
+        container_info = DockerContainers.get_container_info(image)
+        data = {'image_name':image, 'type':MENU, 'subtitle':'Start / Stop / Connect Build Environment. Select it', 'options':get_default_options(image)}
+        options.append(data)
 
-      options = []
-      container_image_list = DockerContainers.get_container_image_list()
-      container_image_list.sort()
-      for image in container_image_list:
-            container_info = DockerContainers.get_container_info(image)
-            data = {'image_name':image, 'type':MENU, 'subtitle':'Start / Stop / Connect Build Environment. Select it', 'options':get_default_options(image)}
-            options.append(data)
+    run_path = os.path.dirname( os.path.abspath( __file__ ) )
+    admin_options = [
+        {'title':'Add User', 'subtitle':'Add User - Enter User Name', 'type':ADM_COMMAND, 'command':os.path.join(run_path, 'add_user.sh')},
+        {'title':'Remove User', 'subtitle':'Remove User - Enter User Name', 'type':ADM_COMMAND, 'command':os.path.join(run_path, 'remove_user.sh')},
+        {'title':'', 'subtitle':'', 'type':SKIP}
+    ]
 
-      menu_data_base['options'] = options
+    menu_data_base['options'] = admin_options + options
 
-      screen = curses.initscr()
-      curses.noecho()
-      curses.cbreak()
-      curses.start_color()
-      screen.keypad(1)
+    screen = curses.initscr()
+    curses.noecho()
+    curses.cbreak()
+    curses.start_color()
+    screen.keypad(1)
 
-      curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
-      highlight = curses.color_pair(1)
-      normalcolor = curses.A_NORMAL
-      runcolor = curses.color_pair(2)
+    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    highlight = curses.color_pair(1)
+    normalcolor = curses.A_NORMAL
+    runcolor = curses.color_pair(2)
 
-      processmenu(menu_data_base)
+    processmenu(menu_data_base)
 
-      curses.endwin()
-      os.system('clear')
+    curses.endwin()
+    os.system('clear')
