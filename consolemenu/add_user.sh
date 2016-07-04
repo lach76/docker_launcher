@@ -16,6 +16,7 @@ username=$1
 
 echo "Create user with [$username|$userpasswd]"
 adduser $username
+usermod -aG sudo $username
 #useradd $username -p $userpasswd -m -s /bin/bash
 
 #echo "Make internal NFSRoot Folder and Symbolic Link"
