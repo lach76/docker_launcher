@@ -129,7 +129,7 @@ def processmenu(menu, parent=None):
             os.system('reset')
 
             if menu['options'][getin]['title'] == 'Log-Out':
-                os.system('logout')
+                os.system('exit')
                 exit()
 
             image_name = menu['options'][getin]['image_name']
