@@ -9,7 +9,7 @@ RUN sudo sed -i 's/archive.ubuntu.com/ftp.daum.net/g' /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y python-software-properties software-properties-common \
     vim tree expect zip screen language-pack-ko language-pack-ko-base curl \
-    subversion subversion-tools git-core ntp
+    subversion subversion-tools git-core ntp sudo
 
 RUN \
   echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections && \

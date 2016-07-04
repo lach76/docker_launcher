@@ -1,7 +1,7 @@
 # Octo 2.x Development Default
 # Version 0.1
 
-FROM 10.0.218.196:5000/ubuntu1404_base
+FROM 10.0.218.196:5000/ubuntu1404:base
 MAINTAINER SEiT@HUMAX
 
 # Run container with below options
@@ -14,13 +14,11 @@ RUN sudo sed -i 's/kr.archive.ubuntu.com/ftp.daum.net/g' /etc/apt/sources.list
 RUN dpkg --add-architecture i386 && add-apt-repository ppa:ubuntu-wine/ppa && \
     apt-get update && \
     apt-get install -y bc git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev libc6-dev tmux \
-    libncurses5-dev x11proto-core-dev libx11-dev libgl1-mesa-dev g++-multilib mingw32 tofrodos flex libesd0-dev \
-    libglib2.0-dev uuid-dev nfs-common nfs-kernel-server lzop vim expect python-software-properties openssh-server \
+    libncurses5-dev g++-multilib tofrodos flex \
+    libglib2.0-dev uuid-dev lzop vim expect python-software-properties openssh-server \
     subversion lib32z1-dev lib32ncurses5-dev automake autoconf \
     python python-dev python-distribute python-pip \
-    libxml-parser-perl wine1.6 \
     cmake \
-    libnss3-tools \
     && \
     ln -s /usr/include/x86_64-linux-gnu/zconf.h /usr/include
 

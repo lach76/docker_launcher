@@ -1,7 +1,7 @@
 # Octo 2.x Development Default
 # Version 0.1
 
-FROM 10.0.218.196:5000/ubuntu1204_base
+FROM 10.0.218.196:5000/ubuntu1204:base
 MAINTAINER SEiT@HUMAX
 
 # Run container with below options

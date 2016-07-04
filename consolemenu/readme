@@ -1,0 +1,1 @@
+docker -D run --restart=always --name vm-registry -d -p 5000:5000 -v /home/humax/container_repo registry:2
