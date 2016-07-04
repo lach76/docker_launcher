@@ -154,7 +154,7 @@ def processmenu(menu, parent=None):
                 os.system('docker restart %s' % container_name)
 
             elif menu['options'][getin]['title'] == 'Connect':
-                command = 'ssh %s' % container_info['internal_ip']
+                command = 'ssh -o StrictHostKeyChecking=no %s' % container_info['internal_ip']
                 os.system(command)
 
             DockerContainers.refreshContainerInfo()
@@ -190,13 +190,13 @@ def get_lan_ip():
 
 def get_default_options(image_name):
     return [
-    {'title':'-----------------------', 'type':SKIP, 'image_name':image_name},
-    {'title':'Connect', 'type':COMMAND, 'image_name':image_name}
+    {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
+    {'title':'Connect', 'type':COMMAND, 'image_name':image_name},
     ]
 
 def get_default_options_adm(image_name):
     return [
-    {'title':'-----------------------', 'type':SKIP, 'image_name':image_name},
+    {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
     {'title':'Start', 'type':COMMAND, 'image_name':image_name},
     {'title':'Stop', 'type':COMMAND, 'image_name':image_name},
     {'title':'Restart', 'type':COMMAND, 'image_name':image_name},
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     admin_options = [
         {'title':'Add User', 'subtitle':'Add User - Enter User Name', 'type':ADM_COMMAND, 'command':os.path.join(run_path, 'add_user.sh')},
         {'title':'Remove User', 'subtitle':'Remove User - Enter User Name', 'type':ADM_COMMAND, 'command':os.path.join(run_path, 'remove_user.sh')},
-        {'title':'', 'subtitle':'', 'type':SKIP}
+        {'title':'-------------------------------------', 'subtitle':'', 'type':SKIP}
     ]
 
     skip_options = [
