@@ -24,7 +24,7 @@ def get_title_str(container_info):
 def runmenu(menu, parent):
       # work out what text to display as the last menu option
     if parent is None:
-        lastoption = "Exit"
+        lastoption = "Go to shell"
     else:
         lastoption = "Return to previous menu"
 
@@ -127,6 +127,10 @@ def processmenu(menu, parent=None):
         elif menu['options'][getin]['type'] == COMMAND:
             curses.def_prog_mode()    # save curent curses environment
             os.system('reset')
+
+            if menu['options'][getin]['title'] == 'Log-Out':
+                os.system('logout')
+                exit()
 
             image_name = menu['options'][getin]['image_name']
             container_info = DockerContainers.get_container_info(image_name)
@@ -238,9 +242,13 @@ if __name__ == '__main__':
         {'title':'-------------------------------------', 'type':SKIP}
     ]
 
+    logout_options = [
+        {'title':'Log-Out', 'type':COMMAND, 'command':''}
+    ]
+
     menu_data_base['title'] = "Development Environment Config Manager - [%s]" % current_user
     if current_user in admin_user_list:
-        menu_data_base['options'] = skip_options + admin_options + options
+        menu_data_base['options'] = skip_options + admin_options + options + skip_options + logout_options
     else:
         menu_data_base['options'] = skip_options + options
 
