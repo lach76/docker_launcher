@@ -9,9 +9,10 @@ import subprocess
 
 START_PORT_NO = 6000
 class TDockerContainer:
-    def __init__(self, registry_url, host_ip_addr):
+    def __init__(self, registry_url, host_ip_addr, cmd_prefix = ''):
         self.registry_url = registry_url
         self.host_ip_addr = host_ip_addr
+        self.cmd_prefix = cmd_prefix
         self.refreshContainerInfo()
 
     def refreshContainerInfo(self):
@@ -113,12 +114,12 @@ class TDockerContainer:
         return repositories
 
     def read_container(self):
-        output = subprocess.check_output('docker ps --format "{{.Names}}" -a', shell = True)
+        output = subprocess.check_output(self.cmd_prefix + 'docker ps --format "{{.Names}}" -a', shell = True)
         lines = output.splitlines()
         if len(lines) == 0:
             return {}
 
-        output = subprocess.check_output('docker inspect %s' % ' '.join(lines), shell = True)
+        output = subprocess.check_output(self.cmd_prefix + 'docker inspect %s' % ' '.join(lines), shell = True)
         run_image_list = json.loads(output)
         run_images = {}
         for image in run_image_list:

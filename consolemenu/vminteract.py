@@ -215,8 +215,12 @@ if __name__ == '__main__':
     current_user = getpass.getuser()
     host_ip_address = get_lan_ip()
 
+    if current_user not in admin_user_list:
+        docker_prefix = 'sudo '
+    else:
+        docker_prefix = ''
     # load docker repository and get current running info
-    DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address)
+    DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address, docker_prefix)
 
     options = []
     container_image_list = DockerContainers.get_container_image_list()
