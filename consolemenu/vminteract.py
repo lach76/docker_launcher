@@ -213,10 +213,12 @@ def processmenu(menu, parent=None):
                 go_curses_mode()
 
             DockerContainers.refreshContainerInfo()
+            make_container_list()
 
         elif menu['options'][getin]['type'] == MENU:
                 screen.clear() #clears previous screen on key press and updates display based on pos
                 processmenu(menu['options'][getin], menu) # display the submenu
+                optioncount = len(menu['options'])
                 screen.clear() #clears previous screen on key press and updates display based on pos
         elif menu['options'][getin]['type'] == EXITMENU:
                 exitmenu = True
@@ -265,20 +267,7 @@ menu_data_base = {
   'options':[]
 }
 
-if __name__ == '__main__':
-    import getpass
-
-    admin_user_list = ['humax', 'kimjh']
-    current_user = getpass.getuser()
-    host_ip_address = get_lan_ip()
-
-    if current_user not in admin_user_list:
-        docker_prefix = 'sudo '
-    else:
-        docker_prefix = ''
-    # load docker repository and get current running info
-    DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address, docker_prefix)
-
+def make_container_list():
     options = []
     container_image_list = DockerContainers.get_container_image_list()
     container_image_list.sort()
@@ -311,6 +300,21 @@ if __name__ == '__main__':
         menu_data_base['options'] = skip_options + admin_options + options + skip_options + logout_options
     else:
         menu_data_base['options'] = skip_options + options
+
+if __name__ == '__main__':
+    import getpass
+
+    admin_user_list = ['humax', 'kimjh']
+    current_user = getpass.getuser()
+    host_ip_address = get_lan_ip()
+
+    if current_user not in admin_user_list:
+        docker_prefix = 'sudo '
+    else:
+        docker_prefix = ''
+    # load docker repository and get current running info
+    DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address, docker_prefix)
+    make_container_list()
 
     screen = curses.initscr()
     curses.noecho()
