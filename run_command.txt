@@ -1,5 +1,5 @@
 docker run -d -P -v /home:/home --name devenv ubuntu1404/base
-docker run -d -P -v /home:/home -v /nfsroot:/nfsroot -v /tftpboot:/tftpboot -v /opt:/opt -v /etc:/tetc --name devenv_1404base ubuntu1404_base
+docker run -d -P -v /home:/home -v /nfsroot:/nfsroot -v /tftpboot:/tftpboot -v /opt:/opt -v /etc:/.tetc --name devenv_1404base ubuntu1404_base
 
 # restart container when docker is started
 docker -D run --restart=always --name vm-registry -d -p 5000:5000 registry:2

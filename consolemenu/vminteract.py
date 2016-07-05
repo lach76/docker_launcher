@@ -154,6 +154,9 @@ def processmenu(menu, parent=None):
                 os.system('docker restart %s' % container_name)
 
             elif menu['options'][getin]['title'] == 'Connect':
+                home = os.path.expanduser("~")
+                command = 'ssh-keygen -f "%s/.ssh/known_hosts" -R %s' % (home, container_info['internal_ip'])
+                os.system(command)
                 command = 'ssh -o StrictHostKeyChecking=no %s' % container_info['internal_ip']
                 os.system(command)
 
@@ -211,7 +214,7 @@ menu_data_base = {
 if __name__ == '__main__':
     import getpass
 
-    admin_user_list = ['humax']
+    admin_user_list = ['humax', 'kimjh']
     current_user = getpass.getuser()
     host_ip_address = get_lan_ip()
 
