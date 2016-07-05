@@ -93,6 +93,15 @@ def runmenu(menu, parent):
     # return index of the selected item
     return pos
 
+def go_shell_mode():
+    curses.def_prog_mode()
+    exec_command('reset')
+
+def go_curses_mode():
+    screen.clear()
+    curses.reset_prog_mode()
+    curses.curs_set(0)
+
 # This function calls showmenu and then acts on the selected item
 def processmenu(menu, parent=None):
     optioncount = len(menu['options'])
@@ -108,33 +117,25 @@ def processmenu(menu, parent=None):
             screen.addstr(2, 2, menu['options'][getin]['subtitle'])
             screen.refresh()
             curses.echo()
+            curses.curs_set(1)
             input = screen.getstr(10, 10, 60)
+            curses.curs_set(0)
             curses.noecho()
 
-            curses.def_prog_mode()    # save curent curses environment
-            os.system('reset')
+            go_shell_mode()
 
-            os.system('sudo %s %s' % (menu['options'][getin]['command'], input))
-            os.system('echo "Now Build Containers are restarting..."')
-            os.system('sudo service docker restart')
+            exec_command('sudo %s %s' % (menu['options'][getin]['command'], input))
+            exec_command('echo "Now Build Containers are restarting..."')
+            exec_command('sudo service docker restart')
 
-            screen.clear() #clears previous screen
-            curses.reset_prog_mode()   # reset to 'current' curses environment
-            curses.curs_set(1)         # reset doesn't do this right
-            curses.curs_set(0)
+            go_curses_mode()
             pass
 
         elif menu['options'][getin]['type'] == COMMAND:
-            curses.def_prog_mode()    # save curent curses environment
-            os.system('reset')
-
-            if menu['options'][getin]['title'] == 'Log-Out':
-                os.system('exit')
-                exit()
-
             image_name = menu['options'][getin]['image_name']
             container_info = DockerContainers.get_container_info(image_name)
             if menu['options'][getin]['title'] == 'Start':
+                go_shell_mode()
                 container_name = container_info['container_name']
                 docker_image_name = image_name
                 cmd_port = '-p %s:22' % container_info['container_port']
@@ -142,36 +143,87 @@ def processmenu(menu, parent=None):
                 cmd_images = '--name %s %s' % (container_name, docker_image_name)
 
                 command = 'docker run -d -P --restart=always %s %s %s' % (cmd_port, cmd_share, cmd_images)
-                os.system(command)
+                exec_command(command)
+                go_curses_mode()
 
             elif menu['options'][getin]['title'] == 'Stop':
+                go_shell_mode()
                 container_name = container_info['container_name']
-                os.system('docker stop %s' % container_name)
-                os.system('docker rm %s' % container_name)
+                exec_command('docker stop %s' % container_name)
+                exec_command('docker rm %s' % container_name)
+                go_curses_mode()
 
             elif menu['options'][getin]['title'] == 'Restart':
+                go_shell_mode()
                 container_name = container_info['container_name']
-                os.system('docker restart %s' % container_name)
+                exec_command('docker restart %s' % container_name)
+                go_curses_mode()
 
             elif menu['options'][getin]['title'] == 'Connect':
+                go_shell_mode()
                 home = os.path.expanduser("~")
                 command = 'ssh-keygen -f "%s/.ssh/known_hosts" -R %s' % (home, container_info['internal_ip'])
-                os.system(command)
+                exec_command(command)
                 command = 'ssh -o StrictHostKeyChecking=no %s' % container_info['internal_ip']
-                os.system(command)
+                exec_command(command)
+                go_curses_mode()
+
+            elif menu['options'][getin]['title'] == 'Commit Current':
+                # Get Input from User
+                screen.clear()
+                screen.border(0)
+                screen.addstr(2, 2, "Input the name of build environments")
+                screen.addstr(4, 2, "    ex > platform.dev.dist.base:version")
+                screen.addstr(5, 2, "         octo2x.dev.ubuntu.base:12.04")
+                screen.refresh()
+                curses.echo()
+                container_basename = container_info['container_name']
+                container_realname = container_info['container_real_name']
+                screen.addstr(10, 10, ' ' * 20 + '.' + container_realname)
+                curses.curs_set(1)
+                input = screen.getstr(10, 10, 20)
+                curses.curs_set(0)
+                #default_container_name = container_info['container_name']
+                #screen.addstr(10, 10, default_container_name, curses.A_UNDERLINE)
+                #input = screen.getstr(10, 10, 60)
+                curses.noecho()
+                go_shell_mode()
+
+                container_tag_name = input + '.' + container_realname
+                reg_url = DockerContainers.get_registry_url()
+                reg_url = reg_url.replace('http://', '')
+                container_tag_name = os.path.join(reg_url, container_tag_name)
+
+                # Stop and Remove Docker container
+                command = 'docker stop %s' % container_basename
+                exec_command(command)
+
+                # commit
+                command = 'docker commit %s %s' % (container_basename, container_tag_name)
+                exec_command(command)
+
+                # remove container
+                command = 'docker rm %s' % container_basename
+                exec_command(command)
+
+                # push container
+                command = 'docker push %s' % container_tag_name
+                exec_command(command)
+
+                go_curses_mode()
 
             DockerContainers.refreshContainerInfo()
-            screen.clear() #clears previous screen
 
-            curses.reset_prog_mode()   # reset to 'current' curses environment
-            curses.curs_set(1)         # reset doesn't do this right
-            curses.curs_set(0)
         elif menu['options'][getin]['type'] == MENU:
                 screen.clear() #clears previous screen on key press and updates display based on pos
                 processmenu(menu['options'][getin], menu) # display the submenu
                 screen.clear() #clears previous screen on key press and updates display based on pos
         elif menu['options'][getin]['type'] == EXITMENU:
                 exitmenu = True
+
+def exec_command(command):
+    #print command
+    os.system(command)
 
 def get_interface_ip(ifname):
     import fcntl
@@ -203,7 +255,9 @@ def get_default_options_adm(image_name):
     {'title':'Start', 'type':COMMAND, 'image_name':image_name},
     {'title':'Stop', 'type':COMMAND, 'image_name':image_name},
     {'title':'Restart', 'type':COMMAND, 'image_name':image_name},
-    {'title':'Connect', 'type':COMMAND, 'image_name':image_name}
+    {'title':'Commit Current', 'type':COMMAND, 'image_name':image_name},
+    {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
+    {'title':'Connect', 'type':COMMAND, 'image_name':image_name},
     ]
 
 menu_data_base = {
@@ -250,7 +304,6 @@ if __name__ == '__main__':
     ]
 
     logout_options = [
-        {'title':'Log-Out', 'type':COMMAND, 'command':''}
     ]
 
     menu_data_base['title'] = "Development Environment Config Manager - [%s]" % current_user

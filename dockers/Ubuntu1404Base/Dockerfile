@@ -35,6 +35,7 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
 
 # allow sudo without password
 COPY etc/sudoers /etc/sudoers
+RUN chmod 440 /etc/sudoers
 
 # use nearest ntp server
 COPY etc/ntp.conf /etc/ntp.conf

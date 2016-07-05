@@ -15,6 +15,9 @@ class TDockerContainer:
         self.cmd_prefix = cmd_prefix
         self.refreshContainerInfo()
 
+    def get_registry_url(self):
+        return self.registry_url
+
     def refreshContainerInfo(self):
         repositories = self.read_registry(self.registry_url)
         containers = self.read_container()
@@ -26,7 +29,8 @@ class TDockerContainer:
             image_list = repositories[registry]
             for image_name in image_list:
                 recommend_name = self.get_container_name(image_name)
-                recommend_port = self.get_container_port(recommend_name, containers)
+                recommend_real_name = self.get_container_real_name(image_name)
+                recommend_port = self.get_container_port(container_name = recommend_name, containers = containers)
                 status = self.get_container_status(recommend_name, containers)
                 int_ip = self.get_container_internalip(recommend_name, containers)
 
@@ -34,7 +38,7 @@ class TDockerContainer:
                     recommend_port, used_port_list = self.get_recommend_port(used_port_list, START_PORT_NO)
 
                 ext_ip = "%s:%s" % (self.host_ip_addr, recommend_port)
-                self.registry_image[image_name] = {'container_name':recommend_name, 'container_port':recommend_port, 'status' : status, 'internal_ip':int_ip, 'expose_ip':ext_ip}
+                self.registry_image[image_name] = {'container_real_name': recommend_real_name, 'container_name':recommend_name, 'container_port':recommend_port, 'status' : status, 'internal_ip':int_ip, 'expose_ip':ext_ip}
 
     def get_host_ip_addr(self):
         return self.host_ip_addr
@@ -47,6 +51,9 @@ class TDockerContainer:
 
     def get_container_name(self, image_name):
         return image_name.split('/')[-1].replace(':', '-')
+
+    def get_container_real_name(self, image_name):
+        return image_name.split('/')[-1]
 
     def get_container_port(self, containers, container_name = None, protocol = '22/tcp'):
         if container_name is None:
@@ -104,7 +111,7 @@ class TDockerContainer:
         for repo in catalog['repositories']:
             repositories[repo] = []
             tags_url = os.path.join(*[url, 'v2', repo, 'tags', 'list'])
-            tags = json.loads(urllib2.urlopen(tags_url).read())
+            tags = json.loads(urllib2.urlopen(tags_url, timeout=5).read())
             if tags.has_key('tags'):
                 for tag in tags['tags']:
                     image_name = os.path.join(*[url, repo]) + ':%s' % tag
