@@ -164,8 +164,26 @@ def processmenu(menu, parent=None):
 
             elif menu['options'][getin]['cmd_name'] == 'remove':
                 # just add .deleted in tag name
+                screen.clear()
+                screen.border(0)
+                screen.addstr(2, 2, "Image Name : [%s]" % container_info['container_real_name'])
+                screen.addstr(4, 4, "Remove it? (yes / no)")
+                curses.curs_set(1)
+                curses.echo()
+                input = screen.getstr(4, 26, 4)
+                curses.curs_set(0)
+                curses.noecho()
+                input.lower()
+                if input != 'yes':
+                    screen.clear()
+                    continue
+
                 go_shell_mode()
-                container_name = container_info['container_name']
+                print 'not implemented yet...'
+                #remove image : %s' % container_info['container_real_name']
+                #exit()
+                #container_name = container_info['container_name']
+                go_curses_mode()
 
                 pass
 
@@ -189,26 +207,37 @@ def processmenu(menu, parent=None):
                 screen.clear()
                 screen.border(0)
                 screen.addstr(2, 2, "Input the name of build environments")
-                screen.addstr(4, 2, "    ex > platform.dev.dist.base:version")
-                screen.addstr(5, 2, "         octo2x.dev.ubuntu.base:12.04")
+                screen.addstr(4, 2, "    ex > distribution.version.dev:platform.tag")
+                screen.addstr(5, 2, "         ubuntu.12.04.dev:octo2x")
+                screen.addstr(5, 2, "         ubuntu.12.04.dev:octo2x.wine")
                 screen.refresh()
                 curses.echo()
                 container_basename = container_info['container_name']
                 container_realname = container_info['container_real_name']
-                screen.addstr(10, 10, ' ' * 20 + '.' + container_realname)
-                curses.curs_set(1)
-                input = screen.getstr(10, 10, 20)
-                curses.curs_set(0)
-                #default_container_name = container_info['container_name']
-                #screen.addstr(10, 10, default_container_name, curses.A_UNDERLINE)
-                #input = screen.getstr(10, 10, 60)
-                curses.noecho()
-                go_shell_mode()
+                screen.addstr(10, 10, container_realname + '.')
 
-                container_tag_name = input + '.' + container_realname
+                tag_index = len(container_realname) + 1#container_realname.index(':') + 1
+                curses.curs_set(1)
+                input = '.' + screen.getstr(10, 10 + tag_index, 20)
+
+                container_tag_name = container_realname + input
+
                 reg_url = DockerContainers.get_registry_url()
                 reg_url = reg_url.replace('http://', '')
                 container_tag_name = os.path.join(reg_url, container_tag_name)
+
+                txt = "    Do you really want to commit image? (yes/no) "
+                screen.addstr(12, 2, txt)
+                input = screen.getstr(12, 2 + len(txt))
+
+                curses.curs_set(0)
+                curses.noecho()
+
+                if input != 'yes':
+                    screen.clear()
+                    continue
+
+                go_shell_mode()
 
                 # Stop and Remove Docker container
                 command = 'docker stop %s' % container_basename
