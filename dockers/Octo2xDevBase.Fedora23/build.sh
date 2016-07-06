@@ -1,4 +1,4 @@
 #!/bin/bash
-docker build -t octo2x.dev.fedora.base:23 .
-docker tag octo2x.dev.fedora.base:23 10.0.218.196:5000/octo2x.dev.fedora.base:23
-docker push 10.0.218.196:5000/octo2x.dev.fedora.base:23
+docker build -t fedora.23.dev:octo2x .
+docker tag fedora.23.dev:octo2x 10.0.218.196:5000/fedora.23.dev:octo2x
+docker push 10.0.218.196:5000/fedora.23.dev:octo2x

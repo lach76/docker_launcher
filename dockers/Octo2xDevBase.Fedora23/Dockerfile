@@ -1,7 +1,7 @@
 # Fedora 23 x64 default Installation
 # Version 0.1
 
-FROM 10.0.218.196:5000/fedora.base:23
+FROM 10.0.218.196:5000/fedora.23.dev
 MAINTAINER SEiT@HUMAX
 
 #################################################################

@@ -17,8 +17,17 @@ EXITMENU = "exitmenu"
 SKIP = 'skip'
 ADM_COMMAND = "admcommand"
 
-def get_title_str(container_info):
-    return '%s - (%s) [%s]' % (container_info['container_name'], container_info['expose_ip'], container_info['status'])
+def get_title_str(container_info, display = True):
+    container_name = container_info['container_name']
+    if display:
+        if container_name.endswith('-latest'):
+            container_name = container_name.replace('-latest', '')
+        else:
+            container_tags = container_name.split('-')[-1]
+            count = container_tags.count('.')
+            container_name = '  ' + '  ' * count + '- ' + container_name
+
+    return '%s - (%s) [%s]' % (container_name, container_info['expose_ip'], container_info['status'])
 
 # This function displays the appropriate menu and returns the option selected
 def runmenu(menu, parent):
@@ -44,7 +53,7 @@ def runmenu(menu, parent):
                 title = menu['title']
             else:
                 container_info = DockerContainers.get_container_info(menu['image_name'])
-                title = get_title_str(container_info)
+                title = get_title_str(container_info, display = False)
 
             screen.addstr(2,2, title, curses.A_STANDOUT) # Title for this menu
             screen.addstr(4,2, menu['subtitle'], curses.A_BOLD) #Subtitle for this menu
@@ -134,7 +143,7 @@ def processmenu(menu, parent=None):
         elif menu['options'][getin]['type'] == COMMAND:
             image_name = menu['options'][getin]['image_name']
             container_info = DockerContainers.get_container_info(image_name)
-            if menu['options'][getin]['title'] == 'Start':
+            if menu['options'][getin]['cmd_name'] == 'start':
                 go_shell_mode()
                 container_name = container_info['container_name']
                 docker_image_name = image_name
@@ -146,20 +155,27 @@ def processmenu(menu, parent=None):
                 exec_command(command)
                 go_curses_mode()
 
-            elif menu['options'][getin]['title'] == 'Stop':
+            elif menu['options'][getin]['cmd_name'] == 'stop':
                 go_shell_mode()
                 container_name = container_info['container_name']
                 exec_command('docker stop %s' % container_name)
                 exec_command('docker rm %s' % container_name)
                 go_curses_mode()
 
-            elif menu['options'][getin]['title'] == 'Restart':
+            elif menu['options'][getin]['cmd_name'] == 'remove':
+                # just add .deleted in tag name
+                go_shell_mode()
+                container_name = container_info['container_name']
+
+                pass
+
+            elif menu['options'][getin]['cmd_name'] == 'restart':
                 go_shell_mode()
                 container_name = container_info['container_name']
                 exec_command('docker restart %s' % container_name)
                 go_curses_mode()
 
-            elif menu['options'][getin]['title'] == 'Connect':
+            elif menu['options'][getin]['cmd_name'] == 'connect':
                 go_shell_mode()
                 home = os.path.expanduser("~")
                 command = 'ssh-keygen -f "%s/.ssh/known_hosts" -R %s' % (home, container_info['internal_ip'])
@@ -168,7 +184,7 @@ def processmenu(menu, parent=None):
                 exec_command(command)
                 go_curses_mode()
 
-            elif menu['options'][getin]['title'] == 'Commit Current':
+            elif menu['options'][getin]['cmd_name'] == 'commit':
                 # Get Input from User
                 screen.clear()
                 screen.border(0)
@@ -247,19 +263,20 @@ def get_lan_ip():
 
 def get_default_options(image_name):
     return [
-    {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
-    {'title':'Connect', 'type':COMMAND, 'image_name':image_name},
+        {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
+        {'title':'Connect', 'type':COMMAND, 'cmd_name':'connect', 'image_name':image_name}
     ]
 
 def get_default_options_adm(image_name):
     return [
-    {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
-    {'title':'Start', 'type':COMMAND, 'image_name':image_name},
-    {'title':'Stop', 'type':COMMAND, 'image_name':image_name},
-    {'title':'Restart', 'type':COMMAND, 'image_name':image_name},
-    {'title':'Commit Current', 'type':COMMAND, 'image_name':image_name},
-    {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
-    {'title':'Connect', 'type':COMMAND, 'image_name':image_name},
+        {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
+        {'title':'Start', 'type':COMMAND, 'cmd_name':'start', 'image_name':image_name},
+        {'title':'Stop', 'type':COMMAND, 'cmd_name':'stop', 'image_name':image_name},
+        {'title':'Restart', 'type':COMMAND, 'cmd_name':'restart', 'image_name':image_name},
+        {'title':'Remove Image', 'type':COMMAND, 'cmd_name':'remove', 'image_name':image_name},
+        {'title':'Commit Image', 'type':COMMAND, 'cmd_name':'commit', 'image_name':image_name},
+        {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
+        {'title':'Connect', 'type':COMMAND, 'cmd_name':'connect', 'image_name':image_name}
     ]
 
 menu_data_base = {

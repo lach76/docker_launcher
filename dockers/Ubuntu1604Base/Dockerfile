@@ -5,11 +5,12 @@ FROM ubuntu:16.04
 MAINTAINER SEiT@HUMAX
 
 # Default package installation
-RUN sed -i 's/archive.ubuntu.com/ftp.daum.net/g' /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y python-software-properties software-properties-common \
+RUN sed -i 's/archive.ubuntu.com/ftp.daum.net/g' /etc/apt/sources.list
+RUN apt update
+RUN apt install -y python-software-properties software-properties-common \
     vim tree expect zip screen language-pack-ko language-pack-ko-base curl \
     subversion subversion-tools git-core ntp
+RUN apt install -y sudo
 
 #################################################################
 # Set configurations
