@@ -121,12 +121,12 @@ class TDockerContainer:
         return repositories
 
     def read_container(self):
-        output = subprocess.check_output(self.cmd_prefix + 'docker ps --format "{{.Names}}" -a', shell = True)
+        output = subprocess.check_output(self.cmd_prefix + 'sudo docker ps --format "{{.Names}}" -a', shell = True)
         lines = output.splitlines()
         if len(lines) == 0:
             return {}
 
-        output = subprocess.check_output(self.cmd_prefix + 'docker inspect %s' % ' '.join(lines), shell = True)
+        output = subprocess.check_output(self.cmd_prefix + 'sudo docker inspect %s' % ' '.join(lines), shell = True)
         run_image_list = json.loads(output)
         run_images = {}
         for image in run_image_list:
