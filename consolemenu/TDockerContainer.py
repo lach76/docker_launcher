@@ -134,10 +134,12 @@ class TDockerContainer:
             status = image['State']['Status']
             imagename = image['Config']['Image']
             internalipaddr = image['NetworkSettings']['Networks']['bridge']['IPAddress']
-            exposeports = image['Config']['ExposedPorts']
-            for key, value in exposeports.iteritems():
-                if image['HostConfig']['PortBindings'] is not None:
-                    exposeports[key] = image['HostConfig']['PortBindings'][key][0]
+            exposeports = {}
+            if image['Config'].has_key('ExposedPorts'):
+                exposeports = image['Config']['ExposedPorts']
+                for key, value in exposeports.iteritems():
+                    if image['HostConfig']['PortBindings'] is not None:
+                        exposeports[key] = image['HostConfig']['PortBindings'][key][0]
 
             run_images[name] = [status, imagename, internalipaddr, exposeports]
 

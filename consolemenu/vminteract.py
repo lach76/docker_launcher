@@ -148,7 +148,7 @@ def processmenu(menu, parent=None):
                 container_name = container_info['container_name']
                 docker_image_name = image_name
                 cmd_port = '-p %s:22' % container_info['container_port']
-                cmd_share = '-v /home:/home -v /nfsroot:/nfsroot -v /tftpboot:/tftpboot -v /opt:/opt -v /etc:/.tetc'
+                cmd_share = '-v /home:/home:rw -v /nfsroot:/nfsroot:rw -v /tftpboot:/tftpboot:rw -v /opt:/opt:rw -v /etc:/.tetc:ro'
                 cmd_images = '--name %s %s' % (container_name, docker_image_name)
 
                 command = 'docker run -d -P --restart=always %s %s %s' % (cmd_port, cmd_share, cmd_images)
