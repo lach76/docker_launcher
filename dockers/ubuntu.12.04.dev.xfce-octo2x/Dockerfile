@@ -1,7 +1,7 @@
 # Octo 2.x Development Default
 # Version 0.1
 
-FROM 10.0.218.196:5000/ubuntu.12.04.dev
+FROM 10.0.218.196:5000/ubuntu.12.04.dev.xfce
 MAINTAINER SEiT@HUMAX
 
 # Run container with below options
@@ -25,6 +25,14 @@ RUN apt-get install -y libxml-parser-perl cmake libnss3-tools
 #RUN apt-get install -y wine1.6
 #RUN ln -s /usr/include/x86_64-linux-gnu/zconf.h /usr/include
 
+# Oracle JAVA Install
+RUN \
+  echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections && \
+  add-apt-repository -y ppa:webupd8team/java && \
+  apt-get update && \
+  apt-get install -y oracle-java8-installer && \
+  rm -rf /var/lib/apt/lists/* && \
+  rm -rf /var/cache/oracle-jdk8-installer
 
 # Make Login Message
 COPY etc/motd /etc/motd
