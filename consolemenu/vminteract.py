@@ -17,90 +17,123 @@ EXITMENU = "exitmenu"
 SKIP = 'skip'
 ADM_COMMAND = "admcommand"
 
+ITEMTYPE_REPO="repo"
+ITEMTYPE_TAG="tag"
+ITEMTYPE_CONTAINER="container"
+
+ITEMTYPE_ADDUSER="adduser"
+ITEMTYPE_REMOVEUSER="removeuser"
+ITEMTYPE_CONTAINER_CONNECT="connect"
+ITEMTYPE_REPO_START="start"
+ITEMTYPE_REPO_STOP="stop"
+ITEMTYPE_REPO_RESTART="restart"
+ITEMTYPE_CONTAINER_REMOVE="remove"
+ITEMTYPE_CONTAINER_COMMIT="commit"
+ITEMTYPE_REPO_TAGGING="tagging"
+
 def get_title_str(container_info, display = True):
     container_name = container_info['container_name']
     if display:
+        container_name = container_name.replace('-latest', '')
+        """
         if container_name.endswith('-latest'):
             container_name = container_name.replace('-latest', '')
         else:
             container_tags = container_name.split('-')[-1]
             count = container_tags.count('.')
             container_name = '  ' + '  ' * count + '- ' + container_name
+        """
 
     return '%s - (%s) [%s]' % (container_name, container_info['expose_ip'], container_info['status'])
 
+def getTitleString(menu):
+    if menu.has_key('depth'):
+        depth = menu['depth']
+    else:
+        depth = 0
+
+    running_flag = False
+    detailInfo = ""
+    if menu.has_key('container_info'):
+        running_string = "not running"
+        container_info = menu['container_info']
+        if container_info['status'] == 'running':
+            running_flag = True
+            running_string = "running"
+        internalIp = container_info['internalIp']
+        exposePort = container_info['exposePort']
+
+        detailInfo = " - %s [%s - %s:%d]" % (running_string, internalIp, host_ip_address, exposePort)
+
+    return "  " * depth + menu['title'] + detailInfo, running_flag
+
+def findNearestIndex(menuList, tIndex, tIncre):
+    menuCount = len(menuList)
+    while True:
+        tIndex = (tIndex + tIncre) % menuCount
+        try:
+            if menuList[tIndex]['type'] == SKIP:
+                continue
+            else:
+                break
+        except:
+            break
+
+    return tIndex
+
+ITEM_START_ROW = 6
 # This function displays the appropriate menu and returns the option selected
 def runmenu(menu, parent):
-      # work out what text to display as the last menu option
+    displayMenuList = []
+    # work out what text to display as the last menu option
+    displayMenuList.append({"title": "---------------------------------------------------------------------", "type": SKIP})
     if parent is None:
-        lastoption = "Go to shell"
+        displayMenuList.append({"title": "Go to shell", "type":EXITMENU})
     else:
-        lastoption = "Return to previous menu"
+        displayMenuList.append({"title": "Return to previous menu", "type":EXITMENU})
 
-    optioncount = len(menu['options']) # how many options in this menu
+    # display title
+    screen.addstr(2, 2, menu['title'], curses.A_STANDOUT)
+    screen.addstr(4, 4, menu['subtitle'], curses.A_BOLD)
 
-    pos=0 #pos is the zero-based index of the hightlighted menu option. Every time runmenu is called, position returns to 0, when runmenu ends the position is returned and tells the program what opt$
-    oldpos=None # used to prevent the screen being redrawn every time
-    x = None #control for while loop, let's you scroll through options until return key is pressed then returns pos to program
+    menulist = menu['options'] + displayMenuList
 
-    # Loop until return key is pressed
-    while x !=ord('\n'):
-        if pos != oldpos:
-            oldpos = pos
-            screen.border(0)
+    # set default position
+    cur_pos = findNearestIndex(menulist, 0, 1)
+    input = None
 
-            if menu.has_key('title'):
-                title = menu['title']
-            else:
-                container_info = DockerContainers.get_container_info(menu['image_name'])
-                title = get_title_str(container_info, display = False)
+    while input != ord('\n'):   # loop until Enter key pressed
+        screen.border(0)
+        skip_pos_list = []
+        for index, menuitem in enumerate(menulist):
+            skipflag = False
+            try:
+                if menuitem['type'] == SKIP:
+                    skipflag = True
+            except:
+                skipflag = False
 
-            screen.addstr(2,2, title, curses.A_STANDOUT) # Title for this menu
-            screen.addstr(4,2, menu['subtitle'], curses.A_BOLD) #Subtitle for this menu
+            if skipflag:
+                skip_pos_list.append(index)
 
-            # Display all the menu items, showing the 'pos' item highlighted
-            for index in range(optioncount):
-                textstyle = normalcolor
-                if pos==index:
-                    textstyle = highlight
-
-                if menu['options'][index].has_key('image_name'):
-                    image_name = menu['options'][index]['image_name']
-                    container_info = DockerContainers.get_container_info(image_name)
-                    if container_info['status'].startswith('run'):
-                        textstyle = textstyle + curses.A_BOLD
-
-                if menu['options'][index].has_key('title'):
-                    title = menu['options'][index]['title']
-                else:
-                    title = get_title_str(container_info)
-
-                screen.addstr(6+index,4, "* " + title, textstyle)
-
-            # Now display Exit/Return at bottom of menu
             textstyle = normalcolor
-            if pos==optioncount:
+            if cur_pos == index:
                 textstyle = highlight
-            screen.addstr(7+optioncount,4, "* %s" % (lastoption), textstyle)
-            screen.refresh()
-            # finished updating screen
 
-        x = screen.getch() # Gets user input
+            title, running = getTitleString(menuitem)
+            if running:
+                textstyle += curses.A_BOLD
+            screen.addstr(ITEM_START_ROW + index, 4, "* " + title, textstyle)
 
-        # What is user input?
-        #if x >= ord('1') and x <= ord(str(optioncount+1)):
-        #  pos = x - ord('0') - 1 # convert keypress back to a number, then subtract 1 to get index
-        if x == 258: # down arrow
-            if pos < optioncount:
-                pos += 1
-            else: pos = 0
-        elif x == 259: # up arrow
-            if pos > 0:
-                pos += -1
-            else: pos = optioncount
+        screen.refresh()
 
-    # return index of the selected item
-    return pos
+        input = screen.getch()
+        if input == 258:    # arrow_down
+            cur_pos = findNearestIndex(menulist, cur_pos, 1)
+        elif input == 259:      # arrow_up
+            cur_pos = findNearestIndex(menulist, cur_pos, -1)
+
+    return cur_pos, menulist[cur_pos]
 
 def go_shell_mode():
     curses.def_prog_mode()
@@ -111,165 +144,195 @@ def go_curses_mode():
     curses.reset_prog_mode()
     curses.curs_set(0)
 
+def getMenuList(itemInfo):
+    subMenu = {
+        "title":"Managing %s" % itemInfo['title'],
+        "target":itemInfo['title'],
+        "containerInfo":None,
+        "type":MENU,
+        "subtitle":"Start / Stop / Connect / Rebuild Development Environments",
+        "options":[
+        ]
+    }
+
+    submenuTagAdmin = [
+        {'title': '---------------------------------------------------------------------', 'type': SKIP},
+        {'title': 'Start Container', 'type': COMMAND, 'itemtype': ITEMTYPE_REPO_START},
+        {'title': 'Remove Image', 'type': COMMAND, 'itemtype': ITEMTYPE_CONTAINER_REMOVE}
+    ]
+    submenuContainer = [
+        {'title': '---------------------------------------------------------------------', 'type': SKIP},
+        {'title': 'Connect', 'type': COMMAND, 'itemtype':ITEMTYPE_CONTAINER_CONNECT},
+    ]
+    submenuContainerAdmin = [
+        {'title': '---------------------------------------------------------------------', 'type': SKIP},
+        {'title': 'Restart Container', 'type': COMMAND, 'itemtype': ITEMTYPE_REPO_RESTART},
+        {'title': 'Stop Container', 'type': COMMAND, 'itemtype': ITEMTYPE_REPO_STOP},
+        {'title': 'Commit Container Image', 'type': COMMAND, 'itemtype': ITEMTYPE_CONTAINER_COMMIT}
+    ]
+
+    # data = {"itemtype": ITEMTYPE_CONTAINER, "title": reg_container_name, "depth": 2, "type": MENU, "container_info": reg_container_info}
+    # container[container_name] = [status, imageName, internalIpAddr, exposePorts]
+    itemType = itemInfo['itemtype']
+    if itemType == ITEMTYPE_REPO:
+        return None
+
+    if itemType == ITEMTYPE_TAG:
+        if isAdminUser():
+            subMenu['options'].extend(submenuTagAdmin)
+        else:
+            return None
+
+    if itemType == ITEMTYPE_CONTAINER:
+        subMenu['container_info'] = itemInfo['container_info']
+        subMenu['options'].extend(submenuContainer)
+        if isAdminUser():
+            subMenu['options'].extend(submenuContainerAdmin)
+
+    return subMenu
+
+def isAdminUser():
+    adminList = ['humax', 'kimjh']
+    if getpass.getuser() in adminList:
+        return True
+
+    return False
+
+def startContainer(itemInfo):
+    global DockerContainers
+
+    go_shell_mode()
+
+    image_name = itemInfo['target'] # image name
+    expose_port = DockerContainers.getNewPort()
+    container_name = DockerContainers.getContainerNameFromImageName(image_name)
+
+    cmd_port = '-p %s:22' % expose_port
+    cmd_share = '-v /home:/home:rw -v /nfsroot:/nfsroot:rw -v /tftpboot:/tftpboot:rw -v /opt:/opt:rw -v /etc:/.tetc:ro'
+    cmd_images = '--name %s %s' % (container_name, image_name)
+
+    command = 'docker run -d -P --restart=always %s %s %s' % (cmd_port, cmd_share, cmd_images)
+
+    exec_command(command)
+    go_curses_mode()
+    pass
+
+def stopContainer(itemInfo):
+    go_shell_mode()
+    exec_command('docker stop %s' % itemInfo['target'])
+    exec_command('docker rm %s' % itemInfo['target'])
+    go_curses_mode()
+
+
+def restartContainer(itemInfo):
+    go_shell_mode()
+    exec_command('docker restart %s' % itemInfo['target'])
+    go_curses_mode()
+
+def removeContainer(itemInfo):
+    screen.addstr(itemInfo['itemrow'], 6, "Now Supported!!!")
+    screen.refresh()
+    time.sleep(1)
+    screen.clear()
+
+def connectContainer(itemInfo):
+    container_info = itemInfo['container_info']
+
+    go_shell_mode()
+    home = os.path.expanduser("~")
+    command = 'ssh-keygen -f "%s/.ssh/known_hosts" -R %s' % (home, container_info['internalIp'])
+    exec_command(command)
+    command = 'ssh -o StrictHostKeyChecking=no %s' % container_info['internalIp']
+    exec_command(command)
+    go_curses_mode()
+
+def commitContainer(itemInfo):
+    screen.addstr(itemInfo['itemrow'], 6, "Now Supported!!!")
+    screen.refresh()
+    time.sleep(2)
+    screen.clear()
+    """
+    go_shell_mode()
+    # Stop and Remove Docker container
+    command = 'docker stop %s' % container_basename
+    exec_command(command)
+    # commit
+    command = 'docker commit %s %s' % (container_basename, container_tag_name)
+    exec_command(command)
+    # remove container
+    command = 'docker rm %s' % container_basename
+    exec_command(command)
+    # push container
+    command = 'docker push %s' % container_tag_name
+    exec_command(command)
+    go_curses_mode()
+    """
+
+
+CommandList = {
+    ITEMTYPE_REPO_START:   startContainer,
+    ITEMTYPE_REPO_STOP:    stopContainer,
+    ITEMTYPE_REPO_RESTART: restartContainer,
+    ITEMTYPE_CONTAINER_REMOVE: removeContainer,
+    ITEMTYPE_CONTAINER_CONNECT: connectContainer,
+    ITEMTYPE_CONTAINER_COMMIT: commitContainer
+}
+
+
+def runCommandWithTarget(item_row, targetName, itemInfo, container_info):
+    itemType = itemInfo['itemtype']
+    if CommandList.has_key(itemType):
+        CommandList[itemType]({"itemrow":item_row, "target":targetName, "info":itemInfo, "container_info":container_info})
+        pass
+    else:
+        screen.addstr(item_row, 6, "Unknown command....")
+        screen.refresh()
+        time.sleep(1)
+        screen.clear()
+
+def runCommand(item_row, itemInfo):
+    itemType = itemInfo['itemtype']
+    if itemType in [ITEMTYPE_ADDUSER, ITEMTYPE_REMOVEUSER]:
+        screen.addstr(item_row, 6, "NOT SUPPORTED!!!!")
+        screen.refresh()
+        time.sleep(1)
+        screen.clear()
+
 # This function calls showmenu and then acts on the selected item
 def processmenu(menu, parent=None):
-    optioncount = len(menu['options'])
     exitmenu = False
+
     while not exitmenu: #Loop until the user exits the menu
-        getin = runmenu(menu, parent)
-        if getin == optioncount:
+        if parent is None:
+            # reload main menu tree (for container updates)
+            menu = makeMenuTrees()
+
+        menu_index, itemInfo = runmenu(menu, parent)
+        menu_type = itemInfo['type']
+        if menu_type == EXITMENU:
             exitmenu = True
-        elif menu['options'][getin]['type'] == ADM_COMMAND:
-            # Get Input from User
+        elif menu_type == MENU:
             screen.clear()
-            screen.border(0)
-            screen.addstr(2, 2, menu['options'][getin]['subtitle'])
-            screen.refresh()
-            curses.echo()
-            curses.curs_set(1)
-            input = screen.getstr(10, 10, 60)
-            curses.curs_set(0)
-            curses.noecho()
+            subMenu = getMenuList(itemInfo)
 
-            go_shell_mode()
-
-            exec_command('sudo %s %s' % (menu['options'][getin]['command'], input))
-            exec_command('echo "Now Build Containers are restarting..."')
-            exec_command('sudo service docker restart')
-
-            go_curses_mode()
+            screen.clear()
+            processmenu(subMenu, menu)
+            screen.clear()
+        elif menu_type == COMMAND:
+            if menu.has_key('target'):
+                if menu.has_key('container_info'):
+                    runCommandWithTarget(menu_index + ITEM_START_ROW, menu['target'], itemInfo, menu['container_info'])
+                else:
+                    runCommandWithTarget(menu_index + ITEM_START_ROW, menu['target'], itemInfo, None)
+                DockerContainers.refreshContainerInfo()
+            else:
+                runCommand(menu_index + ITEM_START_ROW, itemInfo)
+        else:
             pass
 
-        elif menu['options'][getin]['type'] == COMMAND:
-            image_name = menu['options'][getin]['image_name']
-            container_info = DockerContainers.get_container_info(image_name)
-            if menu['options'][getin]['cmd_name'] == 'start':
-                go_shell_mode()
-                container_name = container_info['container_name']
-                docker_image_name = image_name
-                cmd_port = '-p %s:22' % container_info['container_port']
-                cmd_share = '-v /home:/home:rw -v /nfsroot:/nfsroot:rw -v /tftpboot:/tftpboot:rw -v /opt:/opt:rw -v /etc:/.tetc:ro'
-                cmd_images = '--name %s %s' % (container_name, docker_image_name)
-
-                command = 'docker run -d -P --restart=always %s %s %s' % (cmd_port, cmd_share, cmd_images)
-                exec_command(command)
-                go_curses_mode()
-
-            elif menu['options'][getin]['cmd_name'] == 'stop':
-                go_shell_mode()
-                container_name = container_info['container_name']
-                exec_command('docker stop %s' % container_name)
-                exec_command('docker rm %s' % container_name)
-                go_curses_mode()
-
-            elif menu['options'][getin]['cmd_name'] == 'remove':
-                # just add .deleted in tag name
-                screen.clear()
-                screen.border(0)
-                screen.addstr(2, 2, "Image Name : [%s]" % container_info['container_real_name'])
-                screen.addstr(4, 4, "Remove it? (yes / no)")
-                curses.curs_set(1)
-                curses.echo()
-                input = screen.getstr(4, 26, 4)
-                curses.curs_set(0)
-                curses.noecho()
-                input.lower()
-                if input != 'yes':
-                    screen.clear()
-                    continue
-
-                go_shell_mode()
-                print 'not implemented yet...'
-                #remove image : %s' % container_info['container_real_name']
-                #exit()
-                #container_name = container_info['container_name']
-                go_curses_mode()
-
-                pass
-
-            elif menu['options'][getin]['cmd_name'] == 'restart':
-                go_shell_mode()
-                container_name = container_info['container_name']
-                exec_command('docker restart %s' % container_name)
-                go_curses_mode()
-
-            elif menu['options'][getin]['cmd_name'] == 'connect':
-                go_shell_mode()
-                home = os.path.expanduser("~")
-                command = 'ssh-keygen -f "%s/.ssh/known_hosts" -R %s' % (home, container_info['internal_ip'])
-                exec_command(command)
-                command = 'ssh -o StrictHostKeyChecking=no %s' % container_info['internal_ip']
-                exec_command(command)
-                go_curses_mode()
-
-            elif menu['options'][getin]['cmd_name'] == 'commit':
-                # Get Input from User
-                screen.clear()
-                screen.border(0)
-                screen.addstr(2, 2, "Input the name of build environments")
-                screen.addstr(4, 2, "    ex > distribution.version.dev:platform.tag")
-                screen.addstr(5, 2, "         ubuntu.12.04.dev:octo2x")
-                screen.addstr(5, 2, "         ubuntu.12.04.dev:octo2x.wine")
-                screen.refresh()
-                curses.echo()
-                container_basename = container_info['container_name']
-                container_realname = container_info['container_real_name']
-                screen.addstr(10, 10, container_realname + '.')
-
-                tag_index = len(container_realname) + 1#container_realname.index(':') + 1
-                curses.curs_set(1)
-                input = '.' + screen.getstr(10, 10 + tag_index, 20)
-
-                container_tag_name = container_realname + input
-
-                reg_url = DockerContainers.get_registry_url()
-                reg_url = reg_url.replace('http://', '')
-                container_tag_name = os.path.join(reg_url, container_tag_name)
-
-                txt = "    Do you really want to commit image? (yes/no) "
-                screen.addstr(12, 2, txt)
-                input = screen.getstr(12, 2 + len(txt))
-
-                curses.curs_set(0)
-                curses.noecho()
-
-                if input != 'yes':
-                    screen.clear()
-                    continue
-
-                go_shell_mode()
-
-                # Stop and Remove Docker container
-                command = 'docker stop %s' % container_basename
-                exec_command(command)
-
-                # commit
-                command = 'docker commit %s %s' % (container_basename, container_tag_name)
-                exec_command(command)
-
-                # remove container
-                command = 'docker rm %s' % container_basename
-                exec_command(command)
-
-                # push container
-                command = 'docker push %s' % container_tag_name
-                exec_command(command)
-
-                go_curses_mode()
-
-            DockerContainers.refreshContainerInfo()
-            make_container_list()
-
-        elif menu['options'][getin]['type'] == MENU:
-                screen.clear() #clears previous screen on key press and updates display based on pos
-                processmenu(menu['options'][getin], menu) # display the submenu
-                optioncount = len(menu['options'])
-                screen.clear() #clears previous screen on key press and updates display based on pos
-        elif menu['options'][getin]['type'] == EXITMENU:
-                exitmenu = True
+        continue
 
 def exec_command(command):
-    #print command
     os.system(command)
 
 def get_interface_ip(ifname):
@@ -290,62 +353,32 @@ def get_lan_ip():
                 pass
     return ip
 
-def get_default_options(image_name):
-    return [
-        {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
-        {'title':'Connect', 'type':COMMAND, 'cmd_name':'connect', 'image_name':image_name}
-    ]
-
-def get_default_options_adm(image_name):
-    return [
-        {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
-        {'title':'Start', 'type':COMMAND, 'cmd_name':'start', 'image_name':image_name},
-        {'title':'Stop', 'type':COMMAND, 'cmd_name':'stop', 'image_name':image_name},
-        {'title':'Restart', 'type':COMMAND, 'cmd_name':'restart', 'image_name':image_name},
-        {'title':'Remove Image', 'type':COMMAND, 'cmd_name':'remove', 'image_name':image_name},
-        {'title':'Commit Image', 'type':COMMAND, 'cmd_name':'commit', 'image_name':image_name},
-        {'title':'-------------------------------------', 'type':SKIP, 'image_name':image_name},
-        {'title':'Connect', 'type':COMMAND, 'cmd_name':'connect', 'image_name':image_name}
-    ]
-
-menu_data_base = {
-  'title': "Development Environment Launcher", 'type':MENU, 'subtitle':'Please select an options....',
-  'options':[]
-}
-
-def make_container_list():
+def makeMenuTrees():
+    menuTrees = {
+        "title":"Development Environment Config Manager - [%s]" % current_user,
+        "type":"MENU",
+        "subtitle":"Please select an options...",
+        "options":[
+            {"title":"---------------------------------------------------------------------","type":SKIP},
+            {"title":"Add User", "subtitle":"Add user - Enter user name", "type":COMMAND, "itemtype":ITEMTYPE_ADDUSER},
+            {"title":"Remove User", "subtitle":"Remove user - Enter user name", "type":COMMAND, "itemtype":ITEMTYPE_REMOVEUSER},
+            {"title":"---------------------------------------------------------------------","type":SKIP}
+        ]
+    }
     options = []
-    container_image_list = DockerContainers.get_container_image_list()
-    container_image_list.sort()
-    for image in container_image_list:
-        container_info = DockerContainers.get_container_info(image)
-        if current_user in admin_user_list:
-            sub_options = get_default_options_adm(image)
-        else:
-            sub_options = get_default_options(image)
+    docker_repo_dict = DockerContainers.getRepo()
+    for repo, containers in docker_repo_dict.iteritems():
+        data = {"itemtype":ITEMTYPE_REPO, "title":repo, "depth":0, "type":MENU}
+        menuTrees["options"].append(data)
+        for container_image, container_info in containers.iteritems():
+            data = {"itemtype":ITEMTYPE_TAG, "title":container_image, "depth":1, "type":MENU}
+            menuTrees["options"].append(data)
+            for reg_container_name, reg_container_info in container_info.iteritems():
+                data = {"itemtype":ITEMTYPE_CONTAINER, "title":reg_container_name, "depth":2, "type":MENU, "container_info":reg_container_info}
+                menuTrees["options"].append(data)
 
-        data = {'image_name':image, 'type':MENU, 'subtitle':'Start / Stop / Connect Build Environment. Select it', 'options':sub_options}
-        options.append(data)
 
-    run_path = os.path.dirname( os.path.abspath( __file__ ) )
-    admin_options = [
-        {'title':'Add User', 'subtitle':'Add User - Enter User Name', 'type':ADM_COMMAND, 'command':os.path.join(run_path, 'add_user.sh')},
-        {'title':'Remove User', 'subtitle':'Remove User - Enter User Name', 'type':ADM_COMMAND, 'command':os.path.join(run_path, 'remove_user.sh')},
-        {'title':'-------------------------------------', 'subtitle':'', 'type':SKIP}
-    ]
-
-    skip_options = [
-        {'title':'-------------------------------------', 'type':SKIP}
-    ]
-
-    logout_options = [
-    ]
-
-    menu_data_base['title'] = "Development Environment Config Manager - [%s]" % current_user
-    if current_user in admin_user_list:
-        menu_data_base['options'] = skip_options + admin_options + options + skip_options + logout_options
-    else:
-        menu_data_base['options'] = skip_options + options
+    return menuTrees
 
 if __name__ == '__main__':
     import getpass
@@ -358,9 +391,10 @@ if __name__ == '__main__':
         docker_prefix = 'sudo '
     else:
         docker_prefix = ''
+
     # load docker repository and get current running info
-    DockerContainers = TDockerContainer.TDockerContainer('http://10.0.218.196:5000', host_ip_address, docker_prefix)
-    make_container_list()
+    DockerContainers = TDockerContainer.TDockerContainer('http://localhost:5000', host_ip_address, docker_prefix)
+    menu = makeMenuTrees()
 
     screen = curses.initscr()
     curses.noecho()
@@ -373,7 +407,7 @@ if __name__ == '__main__':
     normalcolor = curses.A_NORMAL
     runcolor = curses.color_pair(2)
 
-    processmenu(menu_data_base)
+    processmenu(menu)
 
     curses.endwin()
     os.system('clear')
