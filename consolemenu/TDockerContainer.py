@@ -65,7 +65,7 @@ class TDockerContainer:
                 exposePort = self.getNewPort()
             self.used_port_list.append(exposePort)
 
-            registry[container_image_name][container_name] = {"status":status, "internalIp":internalIp, "exposePort":exposePort}
+            registry[container_image_name][container_name] = {"imagename":value[1], "status":status, "internalIp":internalIp, "exposePort":exposePort}
 
         repo = {}
         for key, value in repositories.iteritems():
@@ -87,19 +87,19 @@ class TDockerContainer:
         if not catalog.has_key('repositories'):
             return {}
 
-        print("Get Local Registry Image List : [%s]" % catalog_url)
+        #print("Get Local Registry Image List : [%s]" % catalog_url)
         repositories = {}
         for repo in catalog['repositories']:
             repositories[repo] = []
             tags_url = url + "/v2/" + repo + "/tags/list"
             tags = json.loads(urllib2.urlopen(tags_url, timeout=5).read())
 
-            print("  - repo : [%s]" % repo)
+            #print("  - repo : [%s]" % repo)
             if tags.has_key('tags'):
                 for tag in tags['tags']:
                     image_name = os.path.join(*[url, repo]) + ':%s' % tag
                     image_name = image_name.replace('http://', '')  # remove protocol
-                    print("    * image : [%s]" % image_name)
+                    #print("    * image : [%s]" % image_name)
                     repositories[repo].append(image_name)
 
         return repositories

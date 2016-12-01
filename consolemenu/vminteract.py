@@ -137,7 +137,7 @@ def runmenu(menu, parent):
 
 def go_shell_mode():
     curses.def_prog_mode()
-    exec_command('reset')
+    exec_command(['reset'])
 
 def go_curses_mode():
     screen.clear()
@@ -201,8 +201,6 @@ def isAdminUser():
 def startContainer(itemInfo):
     global DockerContainers
 
-    go_shell_mode()
-
     image_name = itemInfo['target'] # image name
     expose_port = DockerContainers.getNewPort()
     container_name = DockerContainers.getContainerNameFromImageName(image_name)
@@ -213,21 +211,18 @@ def startContainer(itemInfo):
 
     command = 'docker run -d -P --restart=always %s %s %s' % (cmd_port, cmd_share, cmd_images)
 
-    exec_command(command)
-    go_curses_mode()
+    exec_command([command], itemInfo = itemInfo)
     pass
 
 def stopContainer(itemInfo):
-    go_shell_mode()
-    exec_command('docker stop %s' % itemInfo['target'])
-    exec_command('docker rm %s' % itemInfo['target'])
-    go_curses_mode()
+    commandList = []
+    commandList.append('docker stop %s' % itemInfo['target'])
+    commandList.append('docker rm %s' % itemInfo['target'])
+    exec_command(commandList, itemInfo = itemInfo)
 
 
 def restartContainer(itemInfo):
-    go_shell_mode()
-    exec_command('docker restart %s' % itemInfo['target'])
-    go_curses_mode()
+    exec_command(['docker restart %s' % itemInfo['target']], itemInfo = itemInfo)
 
 def removeContainer(itemInfo):
     screen.addstr(itemInfo['itemrow'], 6, "Now Supported!!!")
@@ -238,36 +233,39 @@ def removeContainer(itemInfo):
 def connectContainer(itemInfo):
     container_info = itemInfo['container_info']
 
-    go_shell_mode()
     home = os.path.expanduser("~")
+
+    commandList = []
     command = 'ssh-keygen -f "%s/.ssh/known_hosts" -R %s' % (home, container_info['internalIp'])
-    exec_command(command)
+    commandList.append(command)
     command = 'ssh -o StrictHostKeyChecking=no %s' % container_info['internalIp']
-    exec_command(command)
-    go_curses_mode()
+    commandList.append(command)
+    exec_command(commandList, True, itemInfo = itemInfo)
 
 def commitContainer(itemInfo):
-    screen.addstr(itemInfo['itemrow'], 6, "Now Supported!!!")
-    screen.refresh()
-    time.sleep(2)
-    screen.clear()
-    """
-    go_shell_mode()
-    # Stop and Remove Docker container
-    command = 'docker stop %s' % container_basename
-    exec_command(command)
-    # commit
-    command = 'docker commit %s %s' % (container_basename, container_tag_name)
-    exec_command(command)
-    # remove container
-    command = 'docker rm %s' % container_basename
-    exec_command(command)
-    # push container
-    command = 'docker push %s' % container_tag_name
-    exec_command(command)
-    go_curses_mode()
-    """
+    containerInfo = itemInfo['container_info']
+    dockerImageName = containerInfo['imagename']
+    queryString = "Input the name of container : %s" % dockerImageName
+    curPos = queryString.rfind(':')
+    if (curPos > 0):
+        screen.addstr(itemInfo['itemrow'], 6, queryString)
+        curses.echo()
+        curses.curs_set(1)
+        tagName = screen.getstr(itemInfo['itemrow'], 6 + curPos + 1, 10)
+        newDockerImageName = dockerImageName[:dockerImageName.rfind(':') + 1] + tagName
+        curses.curs_set(0)
+        curses.noecho()
 
+        commandList = []
+        command = 'docker stop %s' % itemInfo['target']
+        commandList.append(command)
+        command = 'docker commit %s %s' % (itemInfo['target'], newDockerImageName)
+        commandList.append(command)
+        command = 'docker rm %s' % itemInfo['target']
+        commandList.append(command)
+        command = 'docker push %s' % newDockerImageName
+        commandList.append(command)
+        exec_command(commandList, itemInfo = itemInfo)
 
 CommandList = {
     ITEMTYPE_REPO_START:   startContainer,
@@ -332,8 +330,26 @@ def processmenu(menu, parent=None):
 
         continue
 
-def exec_command(command):
-    os.system(command)
+def exec_command(commandList, shellmode = False, itemInfo = None):
+    import subprocess
+    if shellmode:
+        go_shell_mode()
+
+    if shellmode:
+        command = ";".join(commandList)
+        os.system(command)
+    else:
+        height, width = screen.getmaxyx()
+        for command in commandList:
+            screen.addstr(height - 3, 6, "CMD> %s" % command)
+            screen.refresh()
+
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+            (out, err) = proc.communicate()
+        screen.clear()
+
+    if shellmode:
+        go_curses_mode()
 
 def get_interface_ip(ifname):
     import fcntl
@@ -368,7 +384,7 @@ def makeMenuTrees():
     options = []
     docker_repo_dict = DockerContainers.getRepo()
     for repo, containers in docker_repo_dict.iteritems():
-        data = {"itemtype":ITEMTYPE_REPO, "title":repo, "depth":0, "type":MENU}
+        data = {"itemtype":ITEMTYPE_REPO, "title":repo, "depth":0, "type":SKIP}
         menuTrees["options"].append(data)
         for container_image, container_info in containers.iteritems():
             data = {"itemtype":ITEMTYPE_TAG, "title":container_image, "depth":1, "type":MENU}
